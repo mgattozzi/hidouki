@@ -1,0 +1,10 @@
+[package]
+name = "hidouki"
+version = "0.1.0"
+authors = ["Michael Gattozzi <mgattozzi@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+async-std = "0.99"
+http = "0.1"
+httparse = "1.3"

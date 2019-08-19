@@ -1,0 +1,54 @@
+The Prosperity Public License 2.0.0
+
+Contributor: Michael Gattozzi
+
+Source Code: https://github.com/mgattozzi/hidouki
+
+This license lets you use and share this software for free,
+with a trial-length time limit on commercial use. Specifically:
+
+If you follow the rules below, you may do everything with this
+software that would otherwise infringe either the contributor's
+copyright in it, any patent claim the contributor can license
+that covers this software as of the contributor's latest
+contribution, or both.
+
+1. You must limit use of this software in any manner primarily
+   intended for or directed toward commercial advantage or
+   private monetary compensation to a trial period of 32
+   consecutive calendar days. This limit does not apply to use in
+   developing feedback, modifications, or extensions that you
+   contribute back to those giving this license.
+
+2. Ensure everyone who gets a copy of this software from you, in
+   source code or any other form, gets the text of this license
+   and the contributor and source code lines above.
+
+3. Do not make any legal claim against anyone for infringing any
+   patent claim they would infringe by using this software alone,
+   accusing this software, with or without changes, alone or as
+   part of a larger application.
+
+You are excused for unknowingly breaking rule 1 if you stop
+doing anything requiring this license within 30 days of
+learning you broke the rule.
+
+**This software comes as is, without any warranty at all. As far
+as the law allows, the contributor will not be liable for any
+damages related to this software or this license, for any kind of
+legal claim.**
+
+
+---
+
+Licensor Signature (Ed25519):
+
+72520fe9e5ee8be3f05737d26f0e3c96f44a78da58f5293379b006e0a26aa71f
+459d7d022928f0fcf0f8f4db47866e66bec5b376a85a10cdd0fd224d49f11508
+
+---
+
+Agent Signature (Ed25519):
+
+19fc5ba6247bb06ab3bf1f856495e27f50bdf35f2cdbba5ffceca0abc61c5c62
+b04b2ae5d1c6b705a2a5cdd294bc2d509003792cfc8b7f7ee4b09b3b4d23a308

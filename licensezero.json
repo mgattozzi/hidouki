@@ -1,0 +1,18 @@
+{
+  "version": "1.0.0",
+  "licensezero": [
+    {
+      "agentSignature": "752bde926718113a07de181a5f7c59b7b619f45a3761eacddc68284ba00a7a9f9801386bbb213a5e567f71d6c96b0d8910c280be2062897e5ef905544e8bd10c",
+      "license": {
+        "homepage": "https://github.com/mgattozzi/hidouki",
+        "jurisdiction": "US-MA",
+        "name": "Michael Gattozzi",
+        "projectID": "a195e020-a0a2-4e5d-ae17-3951fe682688",
+        "publicKey": "8b49a86d0e23a31932cf57483258ae21ccf19491afde87b5fd439bbe2bf27684",
+        "terms": "prosperity",
+        "version": "2.0.0"
+      },
+      "licensorSignature": "0d6cdf47124eadf3af1de3bf8d482a0fc00577f4a290b80baf84d89e6795dcfe4b4b03e0993e47f0a4da09d684eab22527e7840d8bb7174d2409fbe574b46003"
+    }
+  ]
+}
