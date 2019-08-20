@@ -6,7 +6,7 @@ use async_std::{
     prelude::*,
     task,
 };
-use http::{Request, Response, Version};
+use http::{Request, Response, StatusCode, Version};
 use std::net::ToSocketAddrs;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
@@ -30,14 +30,49 @@ async fn server(addr: impl ToSocketAddrs) -> Result<()> {
     let listener = TcpListener::bind(addr).await?;
     let mut incoming = listener.incoming();
     while let Some(stream) = incoming.next().await {
-        let mut stream = stream?;
+        let mut stream = match stream {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("{}", e);
+                continue;
+            }
+        };
         println!("Accepting from: {}", stream.peer_addr()?);
-        let _req = request(&stream).await?;
-        let res = response_to_bytes(Response::new(()));
-        stream.write_all(&res).await?;
+        match request(&stream).await {
+            Ok(_req) => {
+                let res = response_to_bytes(
+                    Response::builder()
+                        .status(StatusCode::OK)
+                        .header("Content-Length", "0")
+                        .header("Content-Type", "text/plain")
+                        .header("Connection", "close")
+                        .body("")
+                        .expect("Err response should be valid HTTP"),
+                );
+                if let Err(e) = stream.write_all(&res).await {
+                    eprintln!("Failed to send a response: {}", e);
+                }
+            }
+            Err(e) => {
+                let err = e.to_string();
+                let res = response_to_bytes(
+                    Response::builder()
+                        .status(StatusCode::INTERNAL_SERVER_ERROR)
+                        .header("Content-Length", err.as_bytes().len().to_string().as_str())
+                        .header("Content-Type", "text/plain")
+                        .header("Connection", "close")
+                        .body(err)
+                        .expect("Err response should be valid HTTP"),
+                );
+                if let Err(e) = stream.write_all(&res).await {
+                    eprintln!("Failed to send a response: {}", e);
+                }
+            }
+        }
     }
     Ok(())
 }
+
 async fn request(stream: &TcpStream) -> Result<Request<String>> {
     let mut reader = BufReader::new(stream);
     let mut request = Vec::new();
@@ -66,15 +101,22 @@ async fn request(stream: &TcpStream) -> Result<Request<String>> {
     }
 }
 
-fn response_to_bytes<T>(response: Response<T>) -> Vec<u8> {
+fn response_to_bytes<T: AsRef<[u8]>>(response: Response<T>) -> Vec<u8> {
     let mut res = Vec::new();
     let status = response.status();
     res.extend_from_slice(b"HTTP/1.1 ");
     res.extend_from_slice(status.as_str().as_bytes());
     res.extend_from_slice(b" ");
     res.extend_from_slice(status.canonical_reason().unwrap().as_bytes());
-    res.extend_from_slice(b"\r\n\r\n");
-
+    res.extend_from_slice(b"\r\n");
+    for (header, value) in response.headers() {
+        res.extend_from_slice(header.as_str().as_bytes());
+        res.extend_from_slice(b": ");
+        res.extend_from_slice(value.to_str().expect("Invalid header value").as_bytes());
+        res.extend_from_slice(b"\r\n");
+    }
+    res.extend_from_slice(b"\r\n");
+    res.extend_from_slice(response.into_body().as_ref());
     res
 }
 fn make_request(request: httparse::Request, body: Option<Vec<u8>>) -> Result<Request<String>> {
