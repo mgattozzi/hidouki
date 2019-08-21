@@ -1,4 +1,5 @@
 #![feature(async_await)]
+pub mod router;
 
 use async_std::{
     io::BufReader,
@@ -7,97 +8,127 @@ use async_std::{
     task,
 };
 use http::{Request, Response, StatusCode, Version};
-use std::net::ToSocketAddrs;
+use router::{Route, Router};
+use std::{error::Error, net::ToSocketAddrs};
 
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
+pub type Result<T> = std::result::Result<T, Box<dyn Error + Send + Sync>>;
 pub struct Hidouki<A: ToSocketAddrs + Send> {
     address: A,
+    routes: Router,
 }
 
-impl<A: ToSocketAddrs + Send> Hidouki<A> {
+impl<A: ToSocketAddrs + Send + Sync> Hidouki<A> {
     pub fn new(address: A) -> Self {
-        Self { address }
+        Self {
+            address,
+            routes: Router::new(),
+        }
+    }
+
+    pub fn routes<T: Route>(mut self, routes: impl IntoIterator<Item = T>) -> Self {
+        for route in routes.into_iter() {
+            self.routes.route(route);
+        }
+
+        self
     }
 
     pub fn launch(self) {
-        if let Err(e) = task::block_on(server(self.address)) {
+        if let Err(e) = task::block_on(self.server()) {
             eprintln!("{}", e);
         }
     }
-}
 
-async fn server(addr: impl ToSocketAddrs) -> Result<()> {
-    let listener = TcpListener::bind(addr).await?;
-    let mut incoming = listener.incoming();
-    while let Some(stream) = incoming.next().await {
-        let mut stream = match stream {
-            Ok(s) => s,
-            Err(e) => {
-                eprintln!("{}", e);
-                continue;
-            }
-        };
-        println!("Accepting from: {}", stream.peer_addr()?);
-        match request(&stream).await {
-            Ok(_req) => {
-                let res = response_to_bytes(
-                    Response::builder()
-                        .status(StatusCode::OK)
-                        .header("Content-Length", "0")
-                        .header("Content-Type", "text/plain")
-                        .header("Connection", "close")
-                        .body("")
-                        .expect("Err response should be valid HTTP"),
-                );
-                if let Err(e) = stream.write_all(&res).await {
-                    eprintln!("Failed to send a response: {}", e);
+    async fn route_lookup(&self, req: Request<String>) -> Result<Response<String>> {
+        match self
+            .routes
+            .routes
+            .get(req.uri().path())
+            .and_then(|map| map.get(req.method()))
+        {
+            Some(func) => func(req).await,
+            None => Ok(Response::builder()
+                .status(StatusCode::NOT_FOUND)
+                .body(String::new())
+                .expect("Should craft a valid http request")),
+        }
+    }
+
+    async fn server(self) -> Result<()> {
+        let listener = TcpListener::bind(&self.address).await?;
+        let mut incoming = listener.incoming();
+        while let Some(stream) = incoming.next().await {
+            let mut stream = match stream {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("{}", e);
+                    continue;
                 }
-            }
-            Err(e) => {
-                let err = e.to_string();
-                let res = response_to_bytes(
-                    Response::builder()
-                        .status(StatusCode::INTERNAL_SERVER_ERROR)
-                        .header("Content-Length", err.as_bytes().len().to_string().as_str())
-                        .header("Content-Type", "text/plain")
-                        .header("Connection", "close")
-                        .body(err)
-                        .expect("Err response should be valid HTTP"),
-                );
-                if let Err(e) = stream.write_all(&res).await {
-                    eprintln!("Failed to send a response: {}", e);
+            };
+            println!("Accepting from: {}", stream.peer_addr()?);
+            match self.request(&stream).await {
+                Ok(req) => {
+                    let res =
+                        response_to_bytes(self.route_lookup(req).await.unwrap_or_else(|err| {
+                            let err = err.to_string();
+                            Response::builder()
+                                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                                .header("Content-Length", err.as_bytes().len().to_string().as_str())
+                                .header("Content-Type", "text/plain")
+                                .header("Connection", "close")
+                                .body(err)
+                                .expect("Err response should be valid HTTP")
+                        }));
+                    if let Err(e) = stream.write_all(&res).await {
+                        eprintln!("Failed to send a response: {}", e);
+                    }
+                }
+                Err(e) => {
+                    let err = e.to_string();
+                    let res = response_to_bytes(
+                        Response::builder()
+                            .status(StatusCode::INTERNAL_SERVER_ERROR)
+                            .header("Content-Length", err.as_bytes().len().to_string().as_str())
+                            .header("Content-Type", "text/plain")
+                            .header("Connection", "close")
+                            .body(err)
+                            .expect("Err response should be valid HTTP"),
+                    );
+                    if let Err(e) = stream.write_all(&res).await {
+                        eprintln!("Failed to send a response: {}", e);
+                    }
                 }
             }
         }
+        Ok(())
     }
-    Ok(())
-}
 
-async fn request(stream: &TcpStream) -> Result<Request<String>> {
-    let mut reader = BufReader::new(stream);
-    let mut request = Vec::new();
-    //let mut request_body = Vec::new();
-    let mut headers = [httparse::EMPTY_HEADER; 16];
-    let mut req = httparse::Request::new(&mut headers);
+    async fn request(&self, stream: &TcpStream) -> Result<Request<String>> {
+        let mut reader = BufReader::new(stream);
+        let mut request = Vec::new();
+        let mut headers = [httparse::EMPTY_HEADER; 16];
+        let mut req = httparse::Request::new(&mut headers);
 
-    loop {
-        let bytes_read = reader.read_until(b'\n', &mut request).await?;
-        let end = request.len() - 1;
-        // bounds check then check for consecutive 'CRLF'
-        if bytes_read == 0 || end >= 3 && request[end - 3..=end] == [13, 10, 13, 10] {
-            break;
+        loop {
+            let bytes_read = reader.read_until(b'\n', &mut request).await?;
+            let end = request.len() - 1;
+            // bounds check then check for consecutive 'CRLF'
+            if bytes_read == 0 || end >= 3 && request[end - 3..=end] == [13, 10, 13, 10] {
+                break;
+            }
         }
-    }
-    if req.parse(&request)?.is_partial() {
-        return Err("Malformed http header".into());
-    }
-    if let Some(header) = req.headers.iter().find(|h| h.name == "Content-Length") {
-        let mut body = Vec::new();
-        body.resize(std::str::from_utf8(&header.value)?.parse::<usize>()?, 0);
-        reader.read_exact(&mut body).await?;
-        make_request(req, Some(body))
-    } else {
-        make_request(req, None)
+        if req.parse(&request)?.is_partial() {
+            return Err("Malformed http header".into());
+        }
+
+        if let Some(header) = req.headers.iter().find(|h| h.name == "Content-Length") {
+            let mut body = Vec::new();
+            body.resize(std::str::from_utf8(&header.value)?.parse::<usize>()?, 0);
+            reader.read_exact(&mut body).await?;
+            make_request(req, Some(body))
+        } else {
+            make_request(req, None)
+        }
     }
 }
 
