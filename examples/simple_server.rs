@@ -1,8 +1,5 @@
 #![feature(async_await)]
-use hidouki::{
-    router::route,
-    Hidouki,
-};
+use hidouki::{router::route, Hidouki};
 
 fn main() {
     Hidouki::new("0.0.0.0:8080").routes(vec![base]).launch();

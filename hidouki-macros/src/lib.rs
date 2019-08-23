@@ -1,8 +1,8 @@
 extern crate proc_macro;
 use proc_macro::TokenStream;
+use proc_macro2::TokenTree;
 use quote::quote;
 use syn::Item;
-use proc_macro2::TokenTree;
 
 #[proc_macro_attribute]
 pub fn route(attr: TokenStream, input: TokenStream) -> TokenStream {
@@ -10,19 +10,19 @@ pub fn route(attr: TokenStream, input: TokenStream) -> TokenStream {
     let method = {
         match stream.next().expect("No arguments passed to route") {
             TokenTree::Ident(ident) => ident,
-            _ => panic!("No valld http verb ident in route macro")
+            _ => panic!("No valld http verb ident in route macro"),
         }
     };
     let path = {
         match stream.next().expect("Not enough arguments passed to route") {
             TokenTree::Literal(lit) => lit,
-            _ => panic!("No valld http path in route macro")
+            _ => panic!("No valld http path in route macro"),
         }
     };
     if let Item::Fn(item) = syn::parse(input).expect("Unable to parse item") {
         let name = item.sig.ident;
         let block = item.block;
-        let tokens = quote!{
+        let tokens = quote! {
             #[allow(non_camel_case_types)]
             struct #name;
 

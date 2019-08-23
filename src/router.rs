@@ -1,14 +1,11 @@
 use crate::Result;
 pub use async_std::task::JoinHandle;
+pub use hidouki_macros::route;
 use http::{Method, Request, Response};
 use std::collections::HashMap;
-pub use hidouki_macros::route;
 
 pub(crate) struct Router {
-    pub(crate) routes: HashMap<
-        &'static str,
-        HashMap<Method, RouteInternal>,
-    >,
+    pub(crate) routes: HashMap<&'static str, HashMap<Method, RouteInternal>>,
 }
 
 type RouteInternal = fn(Request<String>) -> JoinHandle<Result<Response<String>>>;
@@ -28,10 +25,7 @@ impl Router {
             })
             .or_insert_with(|| {
                 let mut map = HashMap::new();
-                map.insert(
-                    R::METHOD,
-                    R::route as RouteInternal,
-                );
+                map.insert(R::METHOD, R::route as RouteInternal);
                 map
             });
     }
