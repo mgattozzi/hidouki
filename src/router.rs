@@ -2,6 +2,7 @@ use crate::Result;
 pub use async_std::task::JoinHandle;
 use http::{Method, Request, Response};
 use std::collections::HashMap;
+pub use hidouki_macros::route;
 
 pub(crate) struct Router {
     pub(crate) routes: HashMap<

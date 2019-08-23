@@ -8,3 +8,9 @@ edition = "2018"
 async-std = "0.99"
 http = "0.1"
 httparse = "1.3"
+hidouki-macros = { path = "./hidouki-macros" }
+
+[workspace]
+members = [
+  "hidouki-macros"
+]

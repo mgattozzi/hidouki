@@ -7,9 +7,13 @@ use async_std::{
     prelude::*,
     task,
 };
-use http::{Request, Response, StatusCode, Version};
+use http::{StatusCode, Version};
 use router::{Route, Router};
 use std::{error::Error, net::ToSocketAddrs};
+
+// ReExports for macros and ease of use
+pub use async_std::task::spawn;
+pub use http::{Request, Response, Method};
 
 pub type Result<T> = std::result::Result<T, Box<dyn Error + Send + Sync>>;
 pub struct Hidouki<A: ToSocketAddrs + Send> {
